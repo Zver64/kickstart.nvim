@@ -166,6 +166,11 @@ vim.o.scrolloff = 10
 -- See `:help 'confirm'`
 vim.o.confirm = true
 
+vim.opt.tabstop = 4
+vim.opt.shiftwidth = 4
+vim.opt.softtabstop = 4
+vim.opt.expandtab = true
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -381,6 +386,12 @@ if not vim.g.vscode then
 
         -- Useful for getting pretty icons, but requires a Nerd Font.
         { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+        {
+          'nvim-telescope/telescope-live-grep-args.nvim',
+          -- This will not install any breaking changes.
+          -- For major updates, this must be adjusted manually.
+          version = '^1.0.0',
+        },
       },
       config = function()
         -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -409,11 +420,20 @@ if not vim.g.vscode then
           --  All the info you're looking for is in `:help telescope.setup()`
           --
           -- defaults = {
-          --   mappings = {
-          --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-          --   },
+          defaults = {
+            vimgrep_arguments = {
+              '--ignore-case',
+            },
+          },
+          -- mappings = {
+          --   i = { ['<c-enter>'] = 'to_fuzzy_refine' },
           -- },
-          -- pickers = {}
+          -- },
+          pickers = {
+            -- find_files = {
+            --   hidden = true,
+            -- },
+          },
           extensions = {
             ['ui-select'] = {
               require('telescope.themes').get_dropdown(),
@@ -430,6 +450,11 @@ if not vim.g.vscode then
         vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
         vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
         vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
+        vim.keymap.set('n', '<leader>sa', function()
+          builtin.find_files {
+            no_ignore = true,
+          }
+        end, { desc = '[S]earch [F]iles' })
         vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
         vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
         vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
@@ -437,6 +462,8 @@ if not vim.g.vscode then
         vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
         vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
         vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
+        vim.keymap.set('n', '<leader>sG', builtin.git_status, { desc = 'Search changed files' })
+        vim.keymap.set('n', '<leader>sh', builtin.git_bcommits, { desc = 'Search file history' })
 
         -- Slightly advanced example of overriding default behavior and theme
         vim.keymap.set('n', '<leader>/', function()
@@ -782,6 +809,16 @@ if not vim.g.vscode then
       'saghen/blink.cmp',
       event = 'VimEnter',
       version = '1.*',
+      keys = {
+        {
+          '<C-l>',
+          function()
+            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-x><C-o>', true, false, true), 'i', true)
+          end,
+          mode = 'i',
+          desc = 'Trigger LSP completion',
+        },
+      },
       dependencies = {
         -- Snippet Engine
         {
@@ -975,11 +1012,12 @@ if not vim.g.vscode then
     --  Uncomment any of the lines below to enable them (you will need to restart nvim).
     --
     require 'kickstart.plugins.debug',
-    require 'kickstart.plugins.indent_line',
+    -- require 'kickstart.plugins.indent_line',
     require 'kickstart.plugins.lint',
     require 'kickstart.plugins.autopairs',
     require 'kickstart.plugins.neo-tree',
     require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
+    require 'kickstart.plugins.neogit',
 
     -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
     --    This is the easiest way to modularize your config.
@@ -1013,5 +1051,18 @@ if not vim.g.vscode then
     },
   })
 end
+
+vim.keymap.set('n', '<leader>cf', function()
+  vim.fn.setreg('+', vim.fn.expand '%:t')
+  print 'Filename copied to clipboard'
+end, { desc = 'Copy current filename' })
+
+vim.keymap.set('n', '<leader>cp', function()
+  local git_root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+  local full_path = vim.fn.expand '%:p'
+  local rel_path = full_path:sub(#git_root + 2)
+  vim.fn.setreg('+', rel_path)
+  print('Copied: ' .. rel_path)
+end, { desc = '[C]opy path' })
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
